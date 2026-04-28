@@ -1,0 +1,8 @@
+gradio
+pandas
+numpy
+xgboost
+shap
+matplotlib
+joblib
+scikit-learn==1.5.1
