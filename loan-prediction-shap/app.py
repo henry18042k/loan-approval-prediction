@@ -33,10 +33,18 @@ _L = dict(
     paper_bgcolor=C_BG, plot_bgcolor=C_BG,
     font=dict(color=C_TEXT, family='Inter, sans-serif', size=12),
     margin=dict(l=48, r=32, t=52, b=40),
-    legend=dict(bgcolor='rgba(0,0,0,0)', bordercolor=C_BORDER),
     xaxis=dict(gridcolor=C_BORDER, zerolinecolor=C_BORDER),
     yaxis=dict(gridcolor=C_BORDER, zerolinecolor=C_BORDER),
 )
+_LEGEND = dict(bgcolor='rgba(0,0,0,0)', bordercolor=C_BORDER)
+
+def _lo(**extra):
+    """Merge chart-specific kwargs over the base _L dict (avoids duplicate-key errors)."""
+    merged = dict(**_L)
+    if 'legend' not in extra:
+        merged['legend'] = _LEGEND
+    merged.update(extra)
+    return merged
 
 # ── Pre-aggregated dataset statistics (58,645 records from train_loan.csv) ────
 # All values computed offline — no CSV needed at runtime
@@ -105,8 +113,10 @@ def _chart_donut():
         text=f"<b>{STATS['total']:,}</b><br><span style='font-size:11px'>records</span>",
         x=0.5, y=0.5, font=dict(size=14, color=C_TEXT), showarrow=False,
     )
-    fig.update_layout(title='Loan Outcome Distribution<br><sub>대출 결과 분포</sub>',
-                      legend=dict(orientation='h', y=-0.1), **_L)
+    fig.update_layout(**_lo(
+        title='Loan Outcome Distribution<br><sub>대출 결과 분포</sub>',
+        legend=dict(orientation='h', y=-0.1),
+    ))
     return fig
 
 
@@ -120,12 +130,11 @@ def _chart_grade():
         customdata=GRADE_DATA['totals'],
         hovertemplate='Grade %{x}<br>Approval Rate: %{y}%<br>Total: %{customdata:,}<extra></extra>',
     ))
-    fig.update_layout(
+    fig.update_layout(**_lo(
         title='Approval Rate by Loan Grade<br><sub>신용 등급별 승인율</sub>',
         xaxis_title='Loan Grade / 신용 등급',
         yaxis=dict(title='Approval Rate (%) / 승인율', range=[0, 110], gridcolor=C_BORDER),
-        **_L
-    )
+    ))
     return fig
 
 
@@ -136,11 +145,10 @@ def _chart_intent():
         text=[f"{r}%" for r in INTENT_DATA['rates']], textposition='outside',
         hovertemplate='%{y}<br>Approval Rate: %{x}%<extra></extra>',
     ))
-    fig.update_layout(
+    fig.update_layout(**_lo(
         title='Approval Rate by Loan Purpose<br><sub>대출 목적별 승인율</sub>',
         xaxis=dict(title='Approval Rate (%) / 승인율', range=[0, 100], gridcolor=C_BORDER),
-        **_L
-    )
+    ))
     return fig
 
 
@@ -151,11 +159,10 @@ def _chart_ownership():
         text=[f"{r}%" for r in OWN_DATA['rates']], textposition='outside',
         hovertemplate='%{x}<br>Approval Rate: %{y}%<extra></extra>',
     ))
-    fig.update_layout(
+    fig.update_layout(**_lo(
         title='Approval Rate by Home Ownership<br><sub>주택 소유 형태별 승인율</sub>',
         yaxis=dict(title='Approval Rate (%) / 승인율', range=[0, 110], gridcolor=C_BORDER),
-        **_L
-    )
+    ))
     return fig
 
 
@@ -165,13 +172,13 @@ def _chart_income_hist():
                          marker_color=C_GREEN, opacity=0.8))
     fig.add_trace(go.Bar(x=INCOME_BINS, y=INCOME_REJECTED, name='❌ Default',
                          marker_color=C_RED, opacity=0.8))
-    fig.update_layout(
+    fig.update_layout(**_lo(
         barmode='group',
         title='Annual Income Distribution by Outcome<br><sub>결과별 연간 소득 분포</sub>',
         xaxis_title='Income Range / 소득 구간',
         yaxis=dict(title='Count / 건수', gridcolor=C_BORDER),
-        legend=dict(orientation='h', y=1.1), **_L
-    )
+        legend=dict(orientation='h', y=1.1),
+    ))
     return fig
 
 
@@ -181,13 +188,13 @@ def _chart_amount_hist():
                          marker_color=C_GREEN, opacity=0.8))
     fig.add_trace(go.Bar(x=AMOUNT_BINS, y=AMOUNT_REJECTED, name='❌ Default',
                          marker_color=C_RED, opacity=0.8))
-    fig.update_layout(
+    fig.update_layout(**_lo(
         barmode='group',
         title='Loan Amount Distribution by Outcome<br><sub>결과별 대출 금액 분포</sub>',
         xaxis_title='Loan Amount / 대출 금액',
         yaxis=dict(title='Count / 건수', gridcolor=C_BORDER),
-        legend=dict(orientation='h', y=1.1), **_L
-    )
+        legend=dict(orientation='h', y=1.1),
+    ))
     return fig
 
 
@@ -207,10 +214,10 @@ def _chart_dti():
         _box_trace('✅ Approved / 승인', C_GREEN, DTI_APPROVED),
         _box_trace('❌ Default / 부도',  C_RED,   DTI_REJECTED),
     ])
-    fig.update_layout(
+    fig.update_layout(**_lo(
         title='DTI Ratio by Outcome<br><sub>결과별 부채 소득 비율</sub>',
-        yaxis=dict(title='DTI Ratio / 부채 소득 비율', gridcolor=C_BORDER), **_L
-    )
+        yaxis=dict(title='DTI Ratio / 부채 소득 비율', gridcolor=C_BORDER),
+    ))
     return fig
 
 
@@ -219,10 +226,10 @@ def _chart_rate():
         _box_trace('✅ Approved / 승인', C_GREEN, RATE_APPROVED),
         _box_trace('❌ Default / 부도',  C_RED,   RATE_REJECTED),
     ])
-    fig.update_layout(
+    fig.update_layout(**_lo(
         title='Interest Rate by Outcome<br><sub>결과별 금리</sub>',
-        yaxis=dict(title='Interest Rate (%) / 금리', gridcolor=C_BORDER), **_L
-    )
+        yaxis=dict(title='Interest Rate (%) / 금리', gridcolor=C_BORDER),
+    ))
     return fig
 
 
@@ -233,11 +240,10 @@ def _chart_default_history():
         text=[f"{r}%" for r in DEFAULT_DATA['rates']], textposition='outside',
         hovertemplate='%{x}<br>Approval Rate: %{y}%<extra></extra>',
     ))
-    fig.update_layout(
+    fig.update_layout(**_lo(
         title='Approval Rate by Default History<br><sub>신용 불량 이력별 승인율</sub>',
         yaxis=dict(title='Approval Rate (%) / 승인율', range=[0, 105], gridcolor=C_BORDER),
-        **_L
-    )
+    ))
     return fig
 
 
