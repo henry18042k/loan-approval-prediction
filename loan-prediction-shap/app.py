@@ -39,14 +39,14 @@ def predict_loan(age, income, home_ownership, emp_length, intent,
     feature_names   = preprocessor.get_feature_names_out()
     input_df        = pd.DataFrame(input_processed, columns=feature_names)
 
-    # Predict probabilities
-    prob_default = float(model.predict_proba(input_df)[0][1])
-    prob_approve = 1.0 - prob_default
+    # class 1 = fully paid (approved), class 0 = default (rejected)
+    prob_approve = float(model.predict_proba(input_df)[0][1])
+    prob_default = 1.0 - prob_approve
 
-    if prob_default > 0.5:
-        decision = "❌  LOAN REJECTED"
-    else:
+    if prob_approve > 0.5:
         decision = "✅  LOAN APPROVED"
+    else:
+        decision = "❌  LOAN REJECTED"
 
     # ── SHAP Explanation ──────────────────────────────────────────────────────
     explainer   = shap.TreeExplainer(model)
