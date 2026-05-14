@@ -326,7 +326,8 @@ def _build_explanation(sv, feature_names, decision, prob_approve):
         lines.append(f"**Approval Probability / 승인 확률:** {prob_approve:.1%} &nbsp;·&nbsp; "
                      f"**Default Risk / 부도 위험:** {prob_default:.1%}\n\n---\n")
         lines.append("### Why Approved? / 승인 이유\n")
-        lines.append("The following factors **support** this application *(blue bars in SHAP chart / SHAP 차트의 파란색 막대)*:\n\n")
+        lines.append("The following factors **support** this application "
+                     "*(🔴 red bars in SHAP chart / SHAP 차트의 빨간색 막대)*:\n\n")
         for name, val in pos[:4]:
             strength = ("very strong / 매우 강함" if abs(val) > 0.5 else
                         "strong / 강함" if abs(val) > 0.25 else
@@ -334,7 +335,8 @@ def _build_explanation(sv, feature_names, decision, prob_approve):
             lines.append(f"- **{_label(name)}** — positive impact, {strength} `(+{val:.3f})`\n")
         if neg:
             lines.append("\n---\n### ⚠️ Risk Factors Present / 잠재 위험 요소\n")
-            lines.append("These factors are present but **not enough to reject** *(red bars)*:\n\n")
+            lines.append("These factors reduce approval probability but **not enough to reject** "
+                         "*(🔵 blue bars)*:\n\n")
             for name, val in neg[:3]:
                 lines.append(f"- **{_label(name)}** `({val:.3f})`\n")
             lines.append("\n💡 Improving these factors will further strengthen your credit profile.\n"
@@ -344,14 +346,16 @@ def _build_explanation(sv, feature_names, decision, prob_approve):
         lines.append(f"**Default Risk / 부도 위험:** {prob_default:.1%} &nbsp;·&nbsp; "
                      f"**Approval Probability / 승인 확률:** {prob_approve:.1%}\n\n---\n")
         lines.append("### Why Rejected? / 거절 이유\n")
-        lines.append("The following factors **pulled the application down** *(red bars in SHAP chart / SHAP 차트의 빨간색 막대)*:\n\n")
+        lines.append("The following factors **reduce approval probability** "
+                     "*(🔵 blue bars in SHAP chart / SHAP 차트의 파란색 막대)*:\n\n")
         for name, val in neg[:4]:
             severity = ("very high / 매우 높음" if abs(val) > 0.5 else
                         "high / 높음" if abs(val) > 0.25 else "moderate / 보통")
             lines.append(f"- **{_label(name)}** — risk {severity} `({val:.3f})`\n")
         if pos:
             lines.append("\n---\n### ✅ Positive Factors / 긍정적 요소\n")
-            lines.append("These factors help but are **not enough to offset the risk**:\n\n")
+            lines.append("These factors raise approval probability but **not enough to offset the risk** "
+                         "*(🔴 red bars)*:\n\n")
             for name, val in pos[:3]:
                 lines.append(f"- **{_label(name)}** `(+{val:.3f})`\n")
         lines.append("\n---\n### 💡 How to Improve / 개선 방법\n\n")
@@ -630,8 +634,8 @@ with gr.Blocks(
                 with gr.Column(scale=1):
                     gr.Markdown("### 🔍 SHAP Analysis / SHAP 분석")
                     gr.Markdown(
-                        "> 🔵 **Blue bars / 파란 막대** → push toward **Approval / 승인** (lower risk)  \n"
-                        "> 🔴 **Red bars / 빨간 막대** → push toward **Rejection / 거절** (higher risk)  \n"
+                        "> 🔴 **Red bars / 빨간 막대** → push toward **Approval / 승인** (positive factor)  \n"
+                        "> 🔵 **Blue bars / 파란 막대** → push toward **Rejection / 거절** (risk factor)  \n"
                         "> Longer bar = stronger influence on the decision / 막대가 길수록 결정에 더 큰 영향"
                     )
                     shap_out = gr.Image(label="SHAP Waterfall Plot")
