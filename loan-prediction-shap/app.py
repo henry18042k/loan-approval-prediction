@@ -312,8 +312,69 @@ def _advice(name):
     return None
 
 
+# ── Feature value formatter ───────────────────────────────────────────────────
+_NUM_FMT = {
+    'person_age':          lambda v: f"{v:.0f} years / {v:.0f}세",
+    'person_income':       lambda v: f"${v:,.0f} / year",
+    'person_emp_length':   lambda v: f"{v:.0f} years / {v:.0f}년",
+    'loan_amnt':           lambda v: f"${v:,.0f}",
+    'loan_int_rate':       lambda v: f"{v:.2f}%",
+    'loan_percent_income': lambda v: f"{v:.1%}  (={v*100:.1f}% of income / 소득 대비)",
+}
+
+# Human-readable "IS / IS NOT" labels for every one-hot category
+_CAT_ACTIVE = {   # value = 1 → what it means
+    'cat__person_home_ownership_RENT':     "Renter (RENT = 1) / 임차인",
+    'cat__person_home_ownership_OWN':      "Owns home (OWN = 1) / 자가 소유",
+    'cat__person_home_ownership_MORTGAGE': "Mortgage holder (MORTGAGE = 1) / 담보 대출",
+    'cat__person_home_ownership_OTHER':    "Other housing (OTHER = 1) / 기타 주거",
+    'cat__loan_intent_PERSONAL':           "Personal loan purpose (PERSONAL = 1) / 개인 목적",
+    'cat__loan_intent_EDUCATION':          "Education loan (EDUCATION = 1) / 교육 목적",
+    'cat__loan_intent_MEDICAL':            "Medical loan (MEDICAL = 1) / 의료 목적",
+    'cat__loan_intent_VENTURE':            "Venture / business loan (VENTURE = 1) / 사업 목적",
+    'cat__loan_intent_HOMEIMPROVEMENT':    "Home improvement loan (HOMEIMPROVEMENT = 1) / 주택 개선",
+    'cat__loan_intent_DEBTCONSOLIDATION':  "Debt consolidation (DEBTCONSOLIDATION = 1) / 부채 통합",
+    'cat__loan_grade_A': "Loan Grade = A (best) / 신용 등급 A",
+    'cat__loan_grade_B': "Loan Grade = B / 신용 등급 B",
+    'cat__loan_grade_C': "Loan Grade = C / 신용 등급 C",
+    'cat__loan_grade_D': "Loan Grade = D / 신용 등급 D",
+    'cat__loan_grade_E': "Loan Grade = E / 신용 등급 E",
+    'cat__loan_grade_F': "Loan Grade = F / 신용 등급 F",
+    'cat__loan_grade_G': "Loan Grade = G (worst) / 신용 등급 G",
+    'cat__cb_person_default_on_file_Y': "Has prior default history (Y = 1) / 불량 이력 있음",
+    'cat__cb_person_default_on_file_N': "No prior default history (N = 1) / 불량 이력 없음",
+}
+
+def _fmt_feature(name, proc_val, raw_dict):
+    """Return a descriptive string for a feature including its actual value."""
+    if name.startswith('num__'):
+        col = name.replace('num__', '')
+        raw_val = raw_dict.get(col)
+        if raw_val is None:
+            return f"**{_label(name)}**"
+        fmt = _NUM_FMT.get(col, lambda v: str(v))
+        return f"**{_label(name)}** `= {fmt(raw_val)}`"
+
+    elif name.startswith('cat__'):
+        is_active = int(round(float(proc_val))) == 1
+        if is_active:
+            desc = _CAT_ACTIVE.get(name, f"{_label(name)} = 1 (active)")
+            return f"**{_label(name)}** `= 1 ✓` → {desc}"
+        else:
+            active_desc = _CAT_ACTIVE.get(name, _label(name))
+            return f"**{_label(name)}** `= 0 ✗` → NOT {active_desc} / 해당 없음"
+
+    return f"**{_label(name)}**"
+
+
 # ── SHAP explanation builder ──────────────────────────────────────────────────
-def _build_explanation(sv, feature_names, decision, prob_approve):
+def _build_explanation(sv, feature_names, proc_row, raw_dict, decision, prob_approve):
+    """
+    sv           : SHAP values array (shape: n_features)
+    feature_names: list of processed feature names
+    proc_row     : pd.Series of processed (scaled/OHE) input values
+    raw_dict     : dict of original raw input values {col: value}
+    """
     prob_default = 1 - prob_approve
     pairs = sorted(zip(feature_names, sv), key=lambda x: abs(x[1]), reverse=True)
     pos = [(n, v) for n, v in pairs if v > 0]
@@ -326,41 +387,45 @@ def _build_explanation(sv, feature_names, decision, prob_approve):
         lines.append(f"**Approval Probability / 승인 확률:** {prob_approve:.1%} &nbsp;·&nbsp; "
                      f"**Default Risk / 부도 위험:** {prob_default:.1%}\n\n---\n")
         lines.append("### Why Approved? / 승인 이유\n")
-        lines.append("The following factors **support** this application "
-                     "*(🔴 red bars in SHAP chart / SHAP 차트의 빨간색 막대)*:\n\n")
-        for name, val in pos[:4]:
+        lines.append("*(🔴 Red bars in SHAP chart / 빨간색 막대 = positive for approval)*\n\n")
+        for name, val in pos[:5]:
             strength = ("very strong / 매우 강함" if abs(val) > 0.5 else
-                        "strong / 강함" if abs(val) > 0.25 else
-                        "moderate / 보통" if abs(val) > 0.1 else "slight / 약함")
-            lines.append(f"- **{_label(name)}** — positive impact, {strength} `(+{val:.3f})`\n")
+                        "strong / 강함"           if abs(val) > 0.25 else
+                        "moderate / 보통"         if abs(val) > 0.1  else "slight / 약함")
+            feat_str = _fmt_feature(name, proc_row.get(name, 0), raw_dict)
+            lines.append(f"- {feat_str}  \n"
+                         f"  → positive impact, {strength} `(SHAP = +{val:.3f})`\n\n")
         if neg:
-            lines.append("\n---\n### ⚠️ Risk Factors Present / 잠재 위험 요소\n")
-            lines.append("These factors reduce approval probability but **not enough to reject** "
-                         "*(🔵 blue bars)*:\n\n")
+            lines.append("---\n### ⚠️ Risk Factors Present / 잠재 위험 요소\n")
+            lines.append("*(🔵 Blue bars / 파란색 막대 = reduce approval probability)*\n\n")
             for name, val in neg[:3]:
-                lines.append(f"- **{_label(name)}** `({val:.3f})`\n")
-            lines.append("\n💡 Improving these factors will further strengthen your credit profile.\n"
-                         "이러한 요소를 개선하면 신용 프로필이 더욱 강화됩니다.\n")
+                feat_str = _fmt_feature(name, proc_row.get(name, 0), raw_dict)
+                lines.append(f"- {feat_str}  \n"
+                             f"  → reduces approval probability `(SHAP = {val:.3f})`\n\n")
+            lines.append("💡 Improving these factors will strengthen your profile.  \n"
+                         "이러한 요소를 개선하면 신용 프로필이 강화됩니다.\n")
     else:
         lines.append(f"## ❌ Application REJECTED / 거절\n")
         lines.append(f"**Default Risk / 부도 위험:** {prob_default:.1%} &nbsp;·&nbsp; "
                      f"**Approval Probability / 승인 확률:** {prob_approve:.1%}\n\n---\n")
         lines.append("### Why Rejected? / 거절 이유\n")
-        lines.append("The following factors **reduce approval probability** "
-                     "*(🔵 blue bars in SHAP chart / SHAP 차트의 파란색 막대)*:\n\n")
-        for name, val in neg[:4]:
+        lines.append("*(🔵 Blue bars in SHAP chart / 파란색 막대 = reduce approval probability)*\n\n")
+        for name, val in neg[:5]:
             severity = ("very high / 매우 높음" if abs(val) > 0.5 else
-                        "high / 높음" if abs(val) > 0.25 else "moderate / 보통")
-            lines.append(f"- **{_label(name)}** — risk {severity} `({val:.3f})`\n")
+                        "high / 높음"           if abs(val) > 0.25 else "moderate / 보통")
+            feat_str = _fmt_feature(name, proc_row.get(name, 0), raw_dict)
+            lines.append(f"- {feat_str}  \n"
+                         f"  → risk {severity} `(SHAP = {val:.3f})`\n\n")
         if pos:
-            lines.append("\n---\n### ✅ Positive Factors / 긍정적 요소\n")
-            lines.append("These factors raise approval probability but **not enough to offset the risk** "
-                         "*(🔴 red bars)*:\n\n")
+            lines.append("---\n### ✅ Positive Factors / 긍정적 요소\n")
+            lines.append("*(🔴 Red bars / 빨간색 막대 = support approval but not enough)*\n\n")
             for name, val in pos[:3]:
-                lines.append(f"- **{_label(name)}** `(+{val:.3f})`\n")
-        lines.append("\n---\n### 💡 How to Improve / 개선 방법\n\n")
-        advices = [a for a in (_advice(n) for n, _ in neg[:4]) if a]
-        for a in (advices or ["Contact a credit counselor for personalized advice. / 개인 맞춤 상담을 위해 신용 상담사에게 문의하세요."]):
+                feat_str = _fmt_feature(name, proc_row.get(name, 0), raw_dict)
+                lines.append(f"- {feat_str}  \n"
+                             f"  → supports approval `(SHAP = +{val:.3f})`\n\n")
+        lines.append("---\n### 💡 How to Improve / 개선 방법\n\n")
+        advices = [a for a in (_advice(n) for n, _ in neg[:5]) if a]
+        for a in (advices or ["Contact a credit counselor / 신용 상담사에게 문의하세요."]):
             lines.append(f"- {a}\n")
 
     return "".join(lines)
@@ -403,7 +468,12 @@ def predict_loan(age, income, home_ownership, emp_length, intent,
     plt.savefig("shap_plot.png", dpi=150, bbox_inches='tight')
     plt.close(fig)
 
-    explanation = _build_explanation(sv, list(feature_names), decision, prob_approve)
+    proc_row = input_df.iloc[0]                   # processed (scaled/OHE) values
+    raw_dict = raw.iloc[0].to_dict()              # original raw input values
+
+    explanation = _build_explanation(
+        sv, list(feature_names), proc_row, raw_dict, decision, prob_approve
+    )
     return decision, f"{prob_default:.1%}", f"{prob_approve:.1%}", "shap_plot.png", explanation
 
 
