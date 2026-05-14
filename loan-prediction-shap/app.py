@@ -654,23 +654,39 @@ with gr.Blocks(
             gr.HTML(f'<hr style="border-color:{C_BORDER};margin:16px 0;"/>')
             gr.Markdown("### 📋 Sample Applications / 샘플 신청서")
             gr.Markdown(
-                "Click a row to load inputs → then press **Analyze** to compare model prediction vs expected result.  \n"
-                "행을 클릭해 입력값 불러오기 → **분석** 버튼으로 모델 예측과 정답을 비교하세요."
+                "Click a row → press **Analyze** → compare **Model Prediction** vs **Expected Result**.  \n"
+                "행 클릭 → **분석** 버튼 → **모델 예측**과 **예상 정답** 비교."
             )
             gr.Examples(
                 examples=[
-                    # inputs (10) + expected_out label
-                    [32, 60000, "MORTGAGE", 12, "VENTURE",  "A", 5000,  7.50, 0.04, "N",
-                     "✅ APPROVED  |  approve=100.0%  reject=0.0%  |  Grade A, DTI=0.04, No Default"],
-                    [26, 44000, "RENT",      6, "PERSONAL", "B", 11000, 10.37, 0.26, "N",
-                     "❌ REJECTED  |  approve=27.9%  reject=72.1%  |  Grade B, DTI=0.26, Rent"],
-                    [22, 25000, "RENT",      1, "PERSONAL", "E", 15000, 18.50, 0.60, "Y",
-                     "❌ REJECTED  |  approve=0.1%  reject=99.9%  |  Grade E, DTI=0.60, Prior Default"],
+                    # age, income, ownership, emp, intent, grade, amount, rate, dti, default, expected_label
+                    # ── ✅ APPROVED cases ──────────────────────────────────────────────────
+                    [32, 60000, "MORTGAGE", 12, "VENTURE",         "A", 5000,  7.50, 0.04, "N",
+                     "✅ APPROVED  |  approve=100.0%  |  Grade A · DTI=0.04 · Mortgage · No Default"],
+                    [45, 90000, "OWN",      20, "HOMEIMPROVEMENT", "A", 8000,  6.50, 0.05, "N",
+                     "✅ APPROVED  |  approve=99.9%   |  Grade A · DTI=0.05 · Own · 20yr employed"],
+                    [50,120000, "OWN",      25, "VENTURE",         "A", 20000, 7.00, 0.17, "N",
+                     "✅ APPROVED  |  approve=99.8%   |  Grade A · High income · Own · Entrepreneur"],
+                    [35, 55000, "MORTGAGE", 10, "MEDICAL",         "B", 6000,  9.50, 0.11, "N",
+                     "✅ APPROVED  |  approve=97.7%   |  Grade B · DTI=0.11 · Mortgage · Medical"],
+                    [40, 70000, "MORTGAGE", 15, "EDUCATION",       "B", 12000, 10.00, 0.17, "N",
+                     "✅ APPROVED  |  approve=96.3%   |  Grade B · Mid-career · Education loan"],
+                    [28, 35000, "RENT",      3, "EDUCATION",       "C", 7000, 13.00, 0.20, "N",
+                     "✅ APPROVED  |  approve=95.7%   |  Grade C · Student loan · DTI=0.20"],
+                    [29, 48000, "RENT",      5, "MEDICAL",         "C", 9000, 12.50, 0.19, "N",
+                     "✅ APPROVED  |  approve=88.1%   |  Grade C · Medical · DTI=0.19 (borderline)"],
+                    # ── ❌ REJECTED cases ──────────────────────────────────────────────────
+                    [26, 44000, "RENT",      6, "PERSONAL",        "B", 11000, 10.37, 0.26, "N",
+                     "❌ REJECTED  |  approve=27.9%   |  Grade B · DTI=0.26 · Rent · Personal loan"],
+                    [30, 30000, "RENT",      2, "DEBTCONSOLIDATION","D", 18000, 15.50, 0.60, "N",
+                     "❌ REJECTED  |  approve=0.1%    |  Grade D · DTI=0.60 · Debt consolidation"],
+                    [23, 20000, "RENT",      0, "PERSONAL",        "F", 10000, 20.00, 0.50, "Y",
+                     "❌ REJECTED  |  approve=0.5%    |  Grade F · DTI=0.50 · Prior Default · No employment"],
                 ],
                 inputs=[age, income, home_ownership, emp_length, intent,
                         grade, amount, rate, percent_income, default_history,
-                        expected_out],   # fills expected_out but does NOT pass to predict_loan
-                label="Sample 1: Low Risk  |  Sample 2: Medium Risk  |  Sample 3: High Risk"
+                        expected_out],
+                label="✅ Samples 1–7: APPROVED  |  ❌ Samples 8–10: REJECTED  — click any row to load"
             )
 
             submit_btn.click(
