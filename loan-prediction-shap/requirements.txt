@@ -4,5 +4,6 @@ numpy
 xgboost
 shap
 matplotlib
+plotly
 joblib
 scikit-learn==1.5.1
