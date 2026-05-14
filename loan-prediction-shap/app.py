@@ -620,8 +620,12 @@ with gr.Blocks(
 
             with gr.Row():
                 decision_out = gr.Textbox(
-                    label="Final Decision / 최종 결정",
+                    label="🤖 Model Prediction / 모델 예측",
                     interactive=False, elem_id="decision-box", scale=2)
+                expected_out = gr.Textbox(
+                    label="🎯 Expected Result / 예상 정답 (Ground Truth)",
+                    interactive=False, scale=2,
+                    placeholder="Click a sample below to load expected result / 아래 샘플 클릭시 정답 표시")
                 with gr.Column(scale=1):
                     prob_default_out = gr.Textbox(
                         label="🔴 Default Risk / 부도 위험", interactive=False)
@@ -648,16 +652,25 @@ with gr.Blocks(
                     )
 
             gr.HTML(f'<hr style="border-color:{C_BORDER};margin:16px 0;"/>')
-            gr.Markdown("### 📋 Sample Applications / 샘플 신청서 — Click to load / 클릭하여 불러오기")
+            gr.Markdown("### 📋 Sample Applications / 샘플 신청서")
+            gr.Markdown(
+                "Click a row to load inputs → then press **Analyze** to compare model prediction vs expected result.  \n"
+                "행을 클릭해 입력값 불러오기 → **분석** 버튼으로 모델 예측과 정답을 비교하세요."
+            )
             gr.Examples(
                 examples=[
-                    [32, 60000, "MORTGAGE", 12, "VENTURE",  "A", 5000,  7.50, 0.04, "N"],
-                    [26, 44000, "RENT",      6, "PERSONAL", "B", 11000, 10.37, 0.26, "N"],
-                    [22, 25000, "RENT",      1, "PERSONAL", "E", 15000, 18.50, 0.60, "Y"],
+                    # inputs (10) + expected_out label
+                    [32, 60000, "MORTGAGE", 12, "VENTURE",  "A", 5000,  7.50, 0.04, "N",
+                     "✅ APPROVED  |  approve=100.0%  reject=0.0%  |  Grade A, DTI=0.04, No Default"],
+                    [26, 44000, "RENT",      6, "PERSONAL", "B", 11000, 10.37, 0.26, "N",
+                     "❌ REJECTED  |  approve=27.9%  reject=72.1%  |  Grade B, DTI=0.26, Rent"],
+                    [22, 25000, "RENT",      1, "PERSONAL", "E", 15000, 18.50, 0.60, "Y",
+                     "❌ REJECTED  |  approve=0.1%  reject=99.9%  |  Grade E, DTI=0.60, Prior Default"],
                 ],
                 inputs=[age, income, home_ownership, emp_length, intent,
-                        grade, amount, rate, percent_income, default_history],
-                label="✅ Low Risk (Grade A)  |  ⚠️ Borderline (Grade B)  |  ❌ High Risk (Grade E+Default)"
+                        grade, amount, rate, percent_income, default_history,
+                        expected_out],   # fills expected_out but does NOT pass to predict_loan
+                label="Sample 1: Low Risk  |  Sample 2: Medium Risk  |  Sample 3: High Risk"
             )
 
             submit_btn.click(
