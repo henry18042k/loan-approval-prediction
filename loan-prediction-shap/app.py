@@ -538,10 +538,7 @@ KPI_HTML = f"""
 
 # ── Gradio UI ─────────────────────────────────────────────────────────────────
 with gr.Blocks(
-    theme=gr.themes.Soft(primary_hue="indigo", secondary_hue="blue",
-                         font=gr.themes.GoogleFont("Inter")),
     title="AI Loan Approval System",
-    css=CSS,
 ) as iface:
 
     gr.HTML("""
@@ -768,4 +765,9 @@ with gr.Blocks(
             )
 
 if __name__ == "__main__":
-    iface.launch()
+    iface.launch(
+        theme=gr.themes.Soft(primary_hue="indigo", secondary_hue="blue",
+                             font=gr.themes.GoogleFont("Inter")),
+        css=CSS,
+        ssr_mode=False,
+    )
